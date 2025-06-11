@@ -1,0 +1,5 @@
+The SQLite database file is created automatically when you interact with it through your application code. Therefore, the contents of the file `/biomedic-GoApp-backend/db/database.sqlite` will be empty initially. 
+
+Here is the content for the file:
+
+<!-- This file is intentionally left blank. -->
