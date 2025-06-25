@@ -191,6 +191,18 @@ app.get('/api/reportes', (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    logger.info(`Servidor backend escuchando en http://localhost:${PORT}`);
+// Agregar esta ruta antes de app.listen
+app.get('/api/', (req, res) => {
+    res.json({
+        status: 'ok',
+        message: 'API de Biomedic-GoApp funcionando correctamente',
+        endpoints: {
+            reportes: '/api/reportes',
+            reporte: '/api/reporte'
+        }
+    });
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Servidor backend escuchando en http://0.0.0.0:${PORT}`);
 });
