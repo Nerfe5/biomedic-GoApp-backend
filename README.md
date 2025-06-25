@@ -7,14 +7,14 @@ Biomedic-GoApp is a backend application designed to handle reports of medical eq
 ```
 biomedic-GoApp-backend
 ├── db
-│   └── database.sqlite        # SQLite database file for storing report data
-├── src
-│   ├── server.js             # Main entry point of the application
-│   └── db.js                 # Database connection logic and functions
-├── reportes.json             # Backup or log of report data in JSON format
-├── package.json              # npm configuration file with project dependencies
-├── .env                      # Environment variables for sensitive information
-└── README.md                 # Documentation for the project
+│   └── database.sqlite        # SQLite database file
+├── nginx
+│   └── biomedic-app.conf     # Nginx configuration file
+├── server.js                 # Main entry point
+├── ecosystem.config.js       # PM2 configuration
+├── start.sh                  # Service startup script
+├── package.json             
+└── README.md                
 ```
 
 ## Setup Instructions
@@ -26,13 +26,13 @@ biomedic-GoApp-backend
    ```
 
 2. **Install Dependencies**
-   Make sure you have Node.js installed. Then run:
    ```bash
    npm install
+   pm2 install pm2-logrotate    # For log management
    ```
 
 3. **Configure Environment Variables**
-   Create a `.env` file in the root directory and add your SMTP configuration:
+   Create a `.env` file:
    ```
    SMTP_HOST=your_smtp_host
    SMTP_PORT=your_smtp_port
@@ -40,15 +40,30 @@ biomedic-GoApp-backend
    SMTP_PASS=your_email_password
    ```
 
-4. **Run the Application**
-   Start the server with:
+4. **Configure Nginx**
    ```bash
-   node src/server.js
+   sudo cp nginx/biomedic-app.conf /etc/nginx/sites-available/
+   sudo ln -s /etc/nginx/sites-available/biomedic-app /etc/nginx/sites-enabled/
+   sudo nginx -t
+   sudo systemctl restart nginx
    ```
-   The server will be running on `http://localhost:3001`.
 
-## Usage
-To submit a report, send a POST request to the `/api/reporte` endpoint with the following JSON structure:
+5. **Start Services**
+   ```bash
+   chmod +x start.sh
+   ./start.sh
+   ```
+
+## Available URLs
+
+- Frontend: `http://localhost:8080`
+- Backend API: `http://localhost:8080/api`
+- Backend Documentation: `http://localhost:8080/docs`
+
+## API Endpoints
+
+### POST `/api/reporte`
+Submit a new equipment failure report:
 ```json
 {
     "correo": "recipient@example.com",
@@ -66,5 +81,34 @@ To submit a report, send a POST request to the `/api/reporte` endpoint with the 
 }
 ```
 
+### GET `/api/reportes`
+Retrieve all stored reports.
+
+## Production Setup
+
+### Daily Startup
+To start all services:
+```bash
+cd /home/alejandro/biomedic-GoApp-backend
+./start.sh
+```
+
+### Network Access
+To access from other devices in the local network:
+1. Use: `http://[IP-OF-SERVER]:8080`
+2. Ensure devices are on the same network
+3. Configure Windows Firewall if using WSL:
+   ```powershell
+   # Run in PowerShell as Administrator
+   netsh interface portproxy add v4tov4 listenport=8080 listenaddress=0.0.0.0 connectport=8080 connectaddress=localhost
+   ```
+
+### Process Management
+Monitor application status:
+```bash
+pm2 status
+pm2 logs
+```
+
 ## License
-This project is licensed under the MIT License. See the LICENSE file for more details.
+This project is licensed under the MIT License.
