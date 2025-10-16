@@ -223,25 +223,21 @@ app.get('/api/reportes/stats', (req, res) => {
     }
 });
 
-// Endpoint para estadísticas de equipos (simulado hasta tener datos reales)
+// Endpoint para estadísticas de equipos - total de equipos únicos
 app.get('/api/equipos/stats', (req, res) => {
     try {
-        // Por ahora retornamos estadísticas basadas en los reportes
+        // Contar equipos únicos por serie en los reportes
         const equiposUnicos = db.prepare(`
             SELECT COUNT(DISTINCT serie) as total 
             FROM reportes
         `).get().total;
         
-        // Estimamos que 85% están operativos
-        const operativos = Math.floor(equiposUnicos * 0.85);
-        
         res.json({
             ok: true,
-            total: equiposUnicos,
-            operativos: operativos
+            total: equiposUnicos
         });
         
-        logger.info('Estadísticas de equipos consultadas exitosamente.');
+        logger.info(`Estadísticas de equipos: ${equiposUnicos} equipos únicos`);
     } catch (err) {
         logger.error('Error al consultar estadísticas de equipos:', err);
         res.status(500).json({
