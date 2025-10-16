@@ -191,6 +191,66 @@ app.get('/api/reportes', (req, res) => {
     }
 });
 
+// Endpoint para estadísticas de reportes
+app.get('/api/reportes/stats', (req, res) => {
+    try {
+        const hoy = new Date();
+        const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        
+        // Contar reportes del mes actual
+        const reportesMes = db.prepare(`
+            SELECT COUNT(*) as total 
+            FROM reportes 
+            WHERE fechaEnvio >= ?
+        `).get(inicioMes.toISOString()).total;
+        
+        // Total de reportes
+        const totalReportes = db.prepare('SELECT COUNT(*) as total FROM reportes').get().total;
+        
+        res.json({
+            ok: true,
+            mesActual: reportesMes,
+            total: totalReportes
+        });
+        
+        logger.info('Estadísticas de reportes consultadas exitosamente.');
+    } catch (err) {
+        logger.error('Error al consultar estadísticas de reportes:', err);
+        res.status(500).json({
+            ok: false,
+            message: 'Error al obtener estadísticas de reportes'
+        });
+    }
+});
+
+// Endpoint para estadísticas de equipos (simulado hasta tener datos reales)
+app.get('/api/equipos/stats', (req, res) => {
+    try {
+        // Por ahora retornamos estadísticas basadas en los reportes
+        const equiposUnicos = db.prepare(`
+            SELECT COUNT(DISTINCT serie) as total 
+            FROM reportes
+        `).get().total;
+        
+        // Estimamos que 85% están operativos
+        const operativos = Math.floor(equiposUnicos * 0.85);
+        
+        res.json({
+            ok: true,
+            total: equiposUnicos,
+            operativos: operativos
+        });
+        
+        logger.info('Estadísticas de equipos consultadas exitosamente.');
+    } catch (err) {
+        logger.error('Error al consultar estadísticas de equipos:', err);
+        res.status(500).json({
+            ok: false,
+            message: 'Error al obtener estadísticas de equipos'
+        });
+    }
+});
+
 // Agregar esta ruta antes de app.listen
 app.get('/api/', (req, res) => {
     res.json({
