@@ -224,6 +224,100 @@ app.get('/api/reportes/stats', (req, res) => {
     }
 });
 
+// ========== ENDPOINTS DE EQUIPOS (INVENTARIO) ==========
+
+// GET todos los equipos
+app.get('/api/equipos', (req, res) => {
+    try {
+        const equipos = db.prepare('SELECT * FROM equipos ORDER BY fechaRegistro DESC').all();
+        res.json({ ok: true, equipos });
+        logger.info(`Equipos consultados: ${equipos.length}`);
+    } catch (err) {
+        logger.error('Error al consultar equipos:', err);
+        res.status(500).json({ ok: false, message: 'Error al consultar equipos' });
+    }
+});
+
+// POST nuevo equipo
+app.post('/api/equipos', (req, res) => {
+    try {
+        // Soportar tanto 'serie' como 'numserie' desde el frontend
+        const serie = req.body.serie || req.body.numserie;
+        const { nombre, marca, modelo, ubicacion, proveedor, foto, descripcion } = req.body;
+        
+        // Validación básica
+        if (!nombre || !serie) {
+            return res.status(400).json({ ok: false, message: 'Nombre y número de serie son requeridos' });
+        }
+        
+        const stmt = db.prepare(`
+            INSERT INTO equipos (nombre, marca, modelo, serie, ubicacion, proveedor, foto, descripcion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        
+        const result = stmt.run(nombre, marca, modelo, serie, ubicacion, proveedor, foto, descripcion);
+        
+        res.json({ 
+            ok: true, 
+            message: 'Equipo registrado exitosamente',
+            id: result.lastInsertRowid 
+        });
+        logger.info(`Equipo registrado: ${nombre} (${serie})`);
+    } catch (err) {
+        logger.error('Error al registrar equipo:', err);
+        if (err.message.includes('UNIQUE')) {
+            res.status(400).json({ ok: false, message: 'Ya existe un equipo con ese número de serie' });
+        } else {
+            res.status(500).json({ ok: false, message: 'Error al registrar equipo' });
+        }
+    }
+});
+
+// PUT actualizar equipo
+app.put('/api/equipos/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const serie = req.body.serie || req.body.numserie;
+        const { nombre, marca, modelo, ubicacion, proveedor, foto, descripcion } = req.body;
+        
+        const stmt = db.prepare(`
+            UPDATE equipos 
+            SET nombre = ?, marca = ?, modelo = ?, serie = ?, ubicacion = ?, proveedor = ?, foto = ?, descripcion = ?
+            WHERE id = ?
+        `);
+        
+        const result = stmt.run(nombre, marca, modelo, serie, ubicacion, proveedor, foto, descripcion, id);
+        
+        if (result.changes === 0) {
+            return res.status(404).json({ ok: false, message: 'Equipo no encontrado' });
+        }
+        
+        res.json({ ok: true, message: 'Equipo actualizado exitosamente' });
+        logger.info(`Equipo actualizado: ${id}`);
+    } catch (err) {
+        logger.error('Error al actualizar equipo:', err);
+        res.status(500).json({ ok: false, message: 'Error al actualizar equipo' });
+    }
+});
+
+// DELETE equipo
+app.delete('/api/equipos/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = db.prepare('DELETE FROM equipos WHERE id = ?').run(id);
+        
+        if (result.changes === 0) {
+            return res.status(404).json({ ok: false, message: 'Equipo no encontrado' });
+        }
+        
+        res.json({ ok: true, message: 'Equipo eliminado exitosamente' });
+        logger.info(`Equipo eliminado: ${id}`);
+    } catch (err) {
+        logger.error('Error al eliminar equipo:', err);
+        res.status(500).json({ ok: false, message: 'Error al eliminar equipo' });
+    }
+});
+
 // Endpoint para estadísticas de equipos - total desde inventario con fallback
 app.get('/api/equipos/stats', (req, res) => {
     try {
