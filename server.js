@@ -224,27 +224,24 @@ app.get('/api/reportes/stats', (req, res) => {
     }
 });
 
-// Endpoint para estadísticas de equipos - total de equipos únicos
+// Endpoint para estadísticas de equipos - total desde inventario con fallback
 app.get('/api/equipos/stats', (req, res) => {
     try {
-        // Contar equipos únicos por serie en los reportes
-        const equiposUnicos = db.prepare(`
-            SELECT COUNT(DISTINCT serie) as total 
-            FROM reportes
-        `).get().total;
+        // Contar equipos en inventario (tabla equipos)
+        const totalInventario = db.prepare('SELECT COUNT(*) as total FROM equipos').get().total;
+
+        let totalEquipos = totalInventario;
+        // Fallback: si aún no hay inventario cargado, usar total de reportes
+        if (!totalEquipos || Number.isNaN(totalEquipos)) {
+            const totalReportes = db.prepare('SELECT COUNT(*) as total FROM reportes').get().total;
+            totalEquipos = totalReportes;
+        }
         
-        res.json({
-            ok: true,
-            total: equiposUnicos
-        });
-        
-        logger.info(`Estadísticas de equipos: ${equiposUnicos} equipos únicos`);
+        res.json({ ok: true, total: totalEquipos });
+        logger.info(`Estadísticas de equipos: total=${totalEquipos} (inventario=${totalInventario})`);
     } catch (err) {
         logger.error('Error al consultar estadísticas de equipos:', err);
-        res.status(500).json({
-            ok: false,
-            message: 'Error al obtener estadísticas de equipos'
-        });
+        res.status(500).json({ ok: false, message: 'Error al obtener estadísticas de equipos' });
     }
 });
 

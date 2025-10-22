@@ -4,7 +4,8 @@ const path = require('path');
 // La base de datos estará en la raíz del backend
 const db = new Database(path.join(__dirname, 'biomedic.db'));
 
-// Crea la tabla si no existe
+// Tablas necesarias
+// Reportes
 db.prepare(`
   CREATE TABLE IF NOT EXISTS reportes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,6 +22,20 @@ db.prepare(`
     puesto TEXT,
     matricula TEXT,
     fechaEnvio TEXT
+  )
+`).run();
+
+// Equipos (inventario)
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS equipos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    marca TEXT,
+    modelo TEXT,
+    serie TEXT UNIQUE,
+    ubicacion TEXT,
+    proveedor TEXT,
+    fechaRegistro DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `).run();
 
