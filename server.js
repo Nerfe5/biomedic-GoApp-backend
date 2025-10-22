@@ -10,7 +10,6 @@ const db = require('./db');
 const logger = require('./logger');
 
 const app = express();
-const PORT = 3001;
 
 
 // Esquema de validación con Joi
@@ -167,6 +166,8 @@ app.get('/', (req, res) => {
             <ul>
                 <li><b>POST</b> <code>/api/reporte</code> — Enviar reporte de avería</li>
                 <li><b>GET</b> <code>/api/reportes</code> — Consultar reportes almacenados</li>
+                <li><b>GET</b> <code>/api/equipos</code> — Consultar equipos registrados</li>
+                <li><b>POST</b> <code>/api/equipos</code> — Registrar nuevo equipo</li>
             </ul>
             <p style="color: #888; font-size: 0.95em;">
                 Documentación y detalles en el archivo <code>README.md</code> del repositorio.<br>
@@ -177,18 +178,18 @@ app.get('/', (req, res) => {
 });
 
 // Endpoint para consultar todos los reportes
-app.get('/api/reportes', (req, res) => {
-    try {
-        const reportes = db.prepare('SELECT * FROM reportes ORDER BY fechaEnvio DESC').all();
-        res.json({ ok: true, reportes });
-        logger.info('Consulta de reportes exitosa.');
-    } catch (err) {
-        logger.error('Error al consultar reportes:', err);
-        res.status(500).json({
-            ok: false,
-            message: 'No se pudieron consultar los reportes. Intenta más tarde.'
-        });
-    }
+
+app.get('/api/', (req, res) => {
+    res.json({
+        status: 'ok',
+        message: 'API de Biomedic-GoApp funcionando correctamente',
+        endpoints: {
+            reportes: '/api/reportes',
+            reporte: '/api/reporte',
+            equipos: '/api/equipos',
+            'nuevo-equipo': 'POST /api/equipos'
+        }
+    });
 });
 
 // Endpoint para estadísticas de reportes
@@ -247,18 +248,147 @@ app.get('/api/equipos/stats', (req, res) => {
     }
 });
 
-// Agregar esta ruta antes de app.listen
-app.get('/api/', (req, res) => {
-    res.json({
-        status: 'ok',
-        message: 'API de Biomedic-GoApp funcionando correctamente',
-        endpoints: {
-            reportes: '/api/reportes',
-            reporte: '/api/reporte'
-        }
-    });
+// Crear tabla equipos
+db.exec(`
+    CREATE TABLE IF NOT EXISTS equipos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        marca TEXT,
+        modelo TEXT,
+        serie TEXT UNIQUE,
+        ubicacion TEXT,
+        proveedor TEXT,
+        fechaRegistro DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
+
+// =================== ENDPOINTS EQUIPOS ===================
+
+// GET todos los equipos
+app.get('/api/equipos', (req, res) => {
+    try {
+        const equipos = db.prepare('SELECT * FROM equipos ORDER BY nombre').all();
+        res.json({ ok: true, equipos });
+        logger.info('Consulta de equipos exitosa.');
+    } catch (err) {
+        logger.error('Error al consultar equipos:', err);
+        res.status(500).json({
+            ok: false,
+            message: 'Error al obtener equipos'
+        });
+    }
 });
 
+// GET todos los reportes
+app.get('/api/reportes', (req, res) => {
+    try {
+        const reportes = db.prepare('SELECT * FROM reportes ORDER BY fechaEnvio DESC').all();
+        res.json({ ok: true, reportes });
+        logger.info('Consulta de reportes exitosa.');
+    } catch (err) {
+        logger.error('Error al consultar reportes:', err);
+        res.status(500).json({
+            ok: false,
+            message: 'Error al obtener reportes'
+        });
+    }
+});
+
+// POST nuevo equipo
+app.post('/api/equipos', (req, res) => {
+    try {
+        const { nombre, marca, modelo, serie, ubicacion, proveedor } = req.body;
+        
+        const stmt = db.prepare(`
+            INSERT INTO equipos (nombre, marca, modelo, serie, ubicacion, proveedor)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        
+        const result = stmt.run(nombre, marca, modelo, serie, ubicacion, proveedor);
+        
+        res.json({ 
+            ok: true, 
+            message: 'Equipo registrado correctamente',
+            equipoId: result.lastInsertRowid
+        });
+        logger.info(`Equipo registrado: ${nombre} - ${serie}`);
+    } catch (err) {
+        logger.error('Error al registrar equipo:', err);
+        res.status(500).json({
+            ok: false,
+            message: 'Error al registrar equipo'
+        });
+    }
+});
+
+// PUT actualizar equipo
+app.put('/api/equipos/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nombre, marca, modelo, serie, ubicacion, proveedor } = req.body;
+        
+        const stmt = db.prepare(`
+            UPDATE equipos 
+            SET nombre = ?, marca = ?, modelo = ?, serie = ?, ubicacion = ?, proveedor = ?
+            WHERE id = ?
+        `);
+        
+        const result = stmt.run(nombre, marca, modelo, serie, ubicacion, proveedor, id);
+        
+        if (result.changes === 0) {
+            return res.status(404).json({
+                ok: false,
+                message: 'Equipo no encontrado'
+            });
+        }
+        
+        res.json({ 
+            ok: true, 
+            message: 'Equipo actualizado correctamente'
+        });
+        logger.info(`Equipo actualizado: ${id}`);
+    } catch (err) {
+        logger.error('Error al actualizar equipo:', err);
+        res.status(500).json({
+            ok: false,
+            message: 'Error al actualizar equipo'
+        });
+    }
+});
+
+// DELETE eliminar equipo
+app.delete('/api/equipos/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const stmt = db.prepare('DELETE FROM equipos WHERE id = ?');
+        const result = stmt.run(id);
+        
+        if (result.changes === 0) {
+            return res.status(404).json({
+                ok: false,
+                message: 'Equipo no encontrado'
+            });
+        }
+        
+        res.json({ 
+            ok: true, 
+            message: 'Equipo eliminado correctamente'
+        });
+        logger.info(`Equipo eliminado: ${id}`);
+    } catch (err) {
+        logger.error('Error al eliminar equipo:', err);
+        res.status(500).json({
+            ok: false,
+            message: 'Error al eliminar equipo'
+        });
+    }
+});
+
+// Iniciar el servidor
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
     logger.info(`Servidor backend escuchando en http://0.0.0.0:${PORT}`);
 });
+
